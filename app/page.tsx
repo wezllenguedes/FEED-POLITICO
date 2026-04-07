@@ -8,7 +8,7 @@ export const revalidate = 3600; // Revalidate every hour
 export default async function Home() {
   // Fetch from both APIs
   const [deputados, senadores] = await Promise.all([
-    getDeputadosNormalizados(1, 50),
+    getDeputadosNormalizados(1, 200),
     getSenadoresNormalizados()
   ]);
   

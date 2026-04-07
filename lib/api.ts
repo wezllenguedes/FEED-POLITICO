@@ -215,7 +215,7 @@ export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promi
   const events: FeedEvent[] = [];
   
   // Amostra maior para ter bastante dado real, mas sem estourar limite da API
-  const amostra = politicos.sort(() => 0.5 - Math.random()).slice(0, 25);
+  const amostra = politicos.sort(() => 0.5 - Math.random()).slice(0, 100);
 
   await Promise.all(amostra.map(async (politico) => {
     try {
@@ -225,7 +225,7 @@ export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promi
           getCamaraProposicoes(politico.id)
         ]);
         
-        expenses.forEach(exp => {
+        expenses.slice(0, 3).forEach(exp => { // Reduced to 3 to allow more politicians
           if (exp.valorLiquido > 0) {
             events.push({
               id: `exp-${exp.codDocumento}-${Math.random()}`,
@@ -233,7 +233,7 @@ export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promi
               actionType: 'expense',
               text: `Gastou R$ ${exp.valorLiquido.toLocaleString('pt-BR')} com ${exp.tipoDespesa.toLowerCase()}`,
               icon: '💸',
-              color: 'text-orange-500',
+              color: 'text-red-600', // Changed to red
               amountValue: exp.valorLiquido,
               timestamp: exp.dataDocumento || new Date().toISOString(),
               impactScore: exp.valorLiquido > 5000 ? 40 : 70,
@@ -242,14 +242,14 @@ export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promi
           }
         });
 
-        proposicoes.forEach(prop => {
+        proposicoes.slice(0, 2).forEach(prop => { // Reduced to 2
           events.push({
             id: `prop-${prop.id}-${Math.random()}`,
             politico,
             actionType: 'proposal',
             text: `Apresentou o projeto ${prop.siglaTipo} ${prop.numero}/${prop.ano}: ${prop.ementa.substring(0, 120)}...`,
             icon: '📜',
-            color: 'text-blue-500',
+            color: 'text-red-600', // Changed to red
             amountValue: 0,
             timestamp: prop.dataApresentacao || new Date().toISOString(),
             impactScore: 85,
@@ -259,7 +259,7 @@ export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promi
       } else if (politico.origem === 'senado') {
         const discursos = await getSenadoDiscursos(politico.id);
         
-        discursos.forEach(disc => {
+        discursos.slice(0, 2).forEach(disc => { // Reduced to 2
           const resumo = disc.ResumoPronunciamento || disc.TextoPronunciamento || 'Atuação parlamentar no Senado';
           events.push({
             id: `disc-${disc.CodigoPronunciamento || Math.random()}-${Math.random()}`,
@@ -267,7 +267,7 @@ export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promi
             actionType: 'speech',
             text: `Discursou no Senado sobre: ${resumo.substring(0, 150)}...`,
             icon: '🗣️',
-            color: 'text-purple-500',
+            color: 'text-red-600', // Changed to red
             amountValue: 0,
             timestamp: disc.DataPronunciamento || new Date().toISOString(),
             impactScore: 75,
