@@ -155,6 +155,18 @@ export async function getCamaraProposicoes(id: string): Promise<any[]> {
   }
 }
 
+export async function getCamaraDiscursos(id: string): Promise<any[]> {
+  const rawId = id.replace('camara-', '');
+  try {
+    const response = await fetch(`${CAMARA_API_URL}/deputados/${rawId}/discursos?ordem=DESC&ordenarPor=dataHoraInicio&itens=3`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.dados;
+  } catch (error) {
+    return [];
+  }
+}
+
 // --- SENADO FEDERAL ---
 export async function getSenadoresNormalizados(): Promise<PoliticoNormalizado[]> {
   try {
@@ -220,54 +232,70 @@ export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promi
   await Promise.all(amostra.map(async (politico) => {
     try {
       if (politico.origem === 'camara') {
-        const [expenses, proposicoes] = await Promise.all([
+        const [expenses, proposicoes, discursos] = await Promise.all([
           getCamaraExpenses(politico.id),
-          getCamaraProposicoes(politico.id)
+          getCamaraProposicoes(politico.id),
+          getCamaraDiscursos(politico.id)
         ]);
         
-        expenses.slice(0, 3).forEach(exp => { // Reduced to 3 to allow more politicians
+        expenses.slice(0, 2).forEach(exp => {
           if (exp.valorLiquido > 0) {
             events.push({
-              id: `exp-${exp.codDocumento}-${Math.random()}`,
+              id: `exp-${exp.codDocumento || Math.random()}`,
               politico,
               actionType: 'expense',
-              text: `Gastou R$ ${exp.valorLiquido.toLocaleString('pt-BR')} com ${exp.tipoDespesa.toLowerCase()}`,
+              text: `${exp.tipoDespesa}: R$ ${exp.valorLiquido.toLocaleString('pt-BR')}`,
               icon: '💸',
-              color: 'text-red-600', // Changed to red
+              color: 'text-red-600',
               amountValue: exp.valorLiquido,
               timestamp: exp.dataDocumento || new Date().toISOString(),
-              impactScore: exp.valorLiquido > 5000 ? 40 : 70,
+              impactScore: exp.valorLiquido > 5000 ? 30 : 60,
               documentUrl: exp.urlDocumento
             });
           }
         });
 
-        proposicoes.slice(0, 2).forEach(prop => { // Reduced to 2
+        proposicoes.slice(0, 2).forEach(prop => {
           events.push({
-            id: `prop-${prop.id}-${Math.random()}`,
+            id: `prop-${prop.id}`,
             politico,
             actionType: 'proposal',
-            text: `Apresentou o projeto ${prop.siglaTipo} ${prop.numero}/${prop.ano}: ${prop.ementa.substring(0, 120)}...`,
+            text: `${prop.siglaTipo} ${prop.numero}/${prop.ano}: ${prop.ementa}`,
             icon: '📜',
-            color: 'text-red-600', // Changed to red
+            color: 'text-red-600',
             amountValue: 0,
             timestamp: prop.dataApresentacao || new Date().toISOString(),
-            impactScore: 85,
+            impactScore: 90,
             documentUrl: `https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${prop.id}`
+          });
+        });
+
+        discursos.slice(0, 2).forEach(disc => {
+          events.push({
+            id: `disc-camara-${Math.random()}`,
+            politico,
+            actionType: 'speech',
+            text: `Discurso: ${disc.sumario || 'Pronunciamento em plenário'}`,
+            icon: '🗣️',
+            color: 'text-red-600',
+            amountValue: 0,
+            timestamp: disc.dataHoraInicio || new Date().toISOString(),
+            impactScore: 70,
+            documentUrl: null
           });
         });
       } else if (politico.origem === 'senado') {
         const discursos = await getSenadoDiscursos(politico.id);
         
-        discursos.slice(0, 2).forEach(disc => { // Reduced to 2
-          const resumo = disc.ResumoPronunciamento || disc.TextoPronunciamento || 'Atuação parlamentar no Senado';
+        discursos.slice(0, 2).forEach(disc => {
+          const resumo = disc.ResumoPronunciamento || disc.TextoPronunciamento || 'Pronunciamento no Senado Federal';
           events.push({
-            id: `disc-${disc.CodigoPronunciamento || Math.random()}-${Math.random()}`,
+            id: `disc-senado-${disc.CodigoPronunciamento || Math.random()}`,
             politico,
             actionType: 'speech',
-            text: `Discursou no Senado sobre: ${resumo.substring(0, 150)}...`,
+            text: `Senado: ${resumo}`,
             icon: '🗣️',
-            color: 'text-red-600', // Changed to red
+            color: 'text-red-600',
             amountValue: 0,
             timestamp: disc.DataPronunciamento || new Date().toISOString(),
             impactScore: 75,

@@ -35,7 +35,8 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
+    const timer = setTimeout(() => setIsMounted(true), 0);
+    return () => clearTimeout(timer);
   }, []);
 
   // Extract unique parties and UFs for the dropdowns
@@ -98,7 +99,7 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
         <Info className="w-3 h-3 md:w-4 h-4 shrink-0 mt-0.5" />
         <p className="font-bold uppercase tracking-widest">
           Aviso Editorial: Esta análise segue critérios editoriais progressistas. 
-          O Score é calculado com base em direitos sociais, meio ambiente e democracia.
+          Dados reais de gastos, leis e discursos obtidos via APIs oficiais da Câmara e Senado.
         </p>
       </div>
 
@@ -495,9 +496,10 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
                 </div>
 
                 <div className="flex flex-col gap-4">
-                  <h3 className="text-xs font-black uppercase tracking-widest border-l-4 border-primary pl-2">Resumo da Atuação</h3>
-                  <p className="text-sm font-bold leading-relaxed text-foreground/80 italic">
-                    &quot;{detailPolitician.resumo} Atualmente monitorado(a) com base em critérios de defesa da democracia, justiça social e preservação ambiental.&quot;
+                  <h3 className="text-xs font-black uppercase tracking-widest border-l-4 border-primary pl-2">Perfil de Atuação</h3>
+                  <p className="text-sm font-bold leading-relaxed text-foreground/80">
+                    {detailPolitician.nome} é {detailPolitician.cargo} por {detailPolitician.uf}, filiado(a) ao {detailPolitician.partido}. 
+                    Os indicadores abaixo refletem a análise de sua atividade parlamentar (proposições, discursos e gastos) sob a ótica da linha editorial desta plataforma.
                   </p>
                 </div>
 
