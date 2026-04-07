@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { PoliticoNormalizado, FeedEvent } from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -32,6 +32,11 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
   const [selectedPoliticianId, setSelectedPoliticianId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'feed' | 'ranking' | 'search'>('feed');
   const [detailPolitician, setDetailPolitician] = useState<PoliticoNormalizado | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Extract unique parties and UFs for the dropdowns
   const partidos = useMemo(() => Array.from(new Set(initialPoliticians.map(p => p.partido))).sort(), [initialPoliticians]);
@@ -350,7 +355,7 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
                           </button>
                         </div>
                         <span className="text-[10px] md:text-xs text-muted-foreground flex items-center gap-1">
-                          {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true, locale: ptBR })}
+                          {isMounted ? formatDistanceToNow(new Date(event.timestamp), { addSuffix: true, locale: ptBR }) : '...'}
                         </span>
                       </div>
                       
