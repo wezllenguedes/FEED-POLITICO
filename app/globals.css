@@ -144,6 +144,10 @@
     border: 2px solid oklch(0.6 0.3 330);
     box-shadow: 0 0 10px oklch(0.6 0.3 330 / 50%);
   }
+  .neon-border-green {
+    border: 2px solid oklch(0.8 0.2 140);
+    box-shadow: 0 0 10px oklch(0.8 0.2 140 / 50%);
+  }
   .neon-text-orange {
     color: oklch(0.65 0.2 40);
     text-shadow: 0 0 10px oklch(0.65 0.2 40 / 50%);
@@ -155,5 +159,9 @@
   .neon-text-pink {
     color: oklch(0.6 0.3 330);
     text-shadow: 0 0 10px oklch(0.6 0.3 330 / 50%);
+  }
+  .neon-text-green {
+    color: oklch(0.8 0.2 140);
+    text-shadow: 0 0 10px oklch(0.8 0.2 140 / 50%);
   }
 }

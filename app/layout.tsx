@@ -2,7 +2,6 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Inter, Anton } from "next/font/google";
 import { cn } from "@/lib/utils";
-import { BottomNav } from '@/components/bottom-nav';
 import { ThemeProvider } from '@/components/theme-provider';
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
@@ -19,7 +18,6 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
       <body className="antialiased min-h-screen bg-background text-foreground" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           {children}
-          <BottomNav />
         </ThemeProvider>
       </body>
     </html>

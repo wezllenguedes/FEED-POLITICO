@@ -39,23 +39,66 @@ export interface FeedEvent {
 // --- FUNÇÕES DE SCORE (DETERMINÍSTICO BASEADO NO PARTIDO - SEM DADOS FALSOS) ---
 function calculateProgressiveScore(partido: string) {
   const leftWing = ['PT', 'PSOL', 'PCdoB', 'REDE', 'PDT', 'PSB', 'PV'];
-  const rightWing = ['PL', 'NOVO', 'REPUBLICANOS', 'PP', 'UNIÃO', 'PRD'];
+  const rightWing = ['PL', 'NOVO', 'REPUBLICANOS', 'PP', 'UNIÃO', 'PRD', 'MDB', 'PSD', 'AVANTE', 'SOLIDARIEDADE'];
   
   let baseScore = 50;
-  if (leftWing.includes(partido)) baseScore = 85;
-  else if (rightWing.includes(partido)) baseScore = 20;
-  else baseScore = 50; // Centro
+  let ind = {
+    direitosSociais: 50,
+    direitosHumanos: 50,
+    democracia: 50,
+    economia: 50,
+    meioAmbiente: 50,
+    coerencia: 50
+  };
+
+  if (leftWing.includes(partido)) {
+    baseScore = 85;
+    ind = {
+      direitosSociais: 90,
+      direitosHumanos: 95,
+      democracia: 85,
+      economia: 70,
+      meioAmbiente: 90,
+      coerencia: 80
+    };
+    // Specific adjustments
+    if (partido === 'PSOL') {
+      ind.direitosHumanos = 98;
+      ind.direitosSociais = 95;
+    }
+    if (partido === 'PV' || partido === 'REDE') {
+      ind.meioAmbiente = 98;
+    }
+  } else if (rightWing.includes(partido)) {
+    baseScore = 25;
+    ind = {
+      direitosSociais: 20,
+      direitosHumanos: 15,
+      democracia: 40,
+      economia: 80, // High score in "Economy" from a market perspective
+      meioAmbiente: 20,
+      coerencia: 60
+    };
+    if (partido === 'NOVO') {
+      ind.economia = 95;
+      ind.coerencia = 85;
+    }
+  } else {
+    // Centro
+    baseScore = 50;
+    ind = {
+      direitosSociais: 50,
+      direitosHumanos: 45,
+      democracia: 60,
+      economia: 55,
+      meioAmbiente: 40,
+      coerencia: 40
+    };
+  }
 
   return {
     total: baseScore,
-    indicadores: {
-      direitosSociais: baseScore,
-      direitosHumanos: baseScore,
-      democracia: baseScore,
-      economia: baseScore,
-      meioAmbiente: baseScore,
-      coerencia: baseScore,
-    },
+    indicadores: ind,
     tags: leftWing.includes(partido) ? ['Defensor do SUS', 'Pró-Trabalhador'] : rightWing.includes(partido) ? ['Pró-Mercado', 'Conservador'] : ['Centrão']
   };
 }
@@ -188,12 +231,12 @@ export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promi
               id: `exp-${exp.codDocumento}-${Math.random()}`,
               politico,
               actionType: 'expense',
-              text: `Gastou R$ ${exp.valorLiquido.toFixed(2).replace('.', ',')} com ${exp.tipoDespesa}`,
+              text: `Gastou R$ ${exp.valorLiquido.toLocaleString('pt-BR')} com ${exp.tipoDespesa.toLowerCase()}`,
               icon: '💸',
               color: 'text-orange-500',
               amountValue: exp.valorLiquido,
               timestamp: exp.dataDocumento || new Date().toISOString(),
-              impactScore: Math.min(100, Math.floor((exp.valorLiquido / 5000) * 100)),
+              impactScore: exp.valorLiquido > 5000 ? 40 : 70,
               documentUrl: exp.urlDocumento
             });
           }
@@ -204,12 +247,12 @@ export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promi
             id: `prop-${prop.id}-${Math.random()}`,
             politico,
             actionType: 'proposal',
-            text: `Apresentou o projeto ${prop.siglaTipo} ${prop.numero}/${prop.ano}: ${prop.ementa}`,
+            text: `Apresentou o projeto ${prop.siglaTipo} ${prop.numero}/${prop.ano}: ${prop.ementa.substring(0, 120)}...`,
             icon: '📜',
             color: 'text-blue-500',
             amountValue: 0,
             timestamp: prop.dataApresentacao || new Date().toISOString(),
-            impactScore: 80,
+            impactScore: 85,
             documentUrl: `https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${prop.id}`
           });
         });
@@ -217,17 +260,18 @@ export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promi
         const discursos = await getSenadoDiscursos(politico.id);
         
         discursos.forEach(disc => {
-          if (!disc.ResumoDiscurso) return;
+          const resumo = disc.ResumoPronunciamento || disc.TextoPronunciamento || 'Atuação parlamentar no Senado';
           events.push({
-            id: `disc-${disc.CodigoPronunciamento}-${Math.random()}`,
+            id: `disc-${disc.CodigoPronunciamento || Math.random()}-${Math.random()}`,
             politico,
             actionType: 'speech',
-            text: `Discursou no Senado: "${disc.ResumoDiscurso.substring(0, 150)}..."`,
+            text: `Discursou no Senado sobre: ${resumo.substring(0, 150)}...`,
             icon: '🗣️',
             color: 'text-purple-500',
             amountValue: 0,
             timestamp: disc.DataPronunciamento || new Date().toISOString(),
-            impactScore: 60,
+            impactScore: 75,
+            documentUrl: disc.UrlTexto
           });
         });
       }
