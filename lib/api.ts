@@ -242,10 +242,22 @@ export async function getSenadoDiscursos(id: string): Promise<any[]> {
 export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promise<FeedEvent[]> {
   const events: FeedEvent[] = [];
   
-  // Amostra reduzida para evitar rate limit da API (25 políticos * 3 requests cada = 75 requests)
-  const amostra = politicos.sort(() => 0.5 - Math.random()).slice(0, 25);
+  // Criar uma amostra representativa (pelo menos 1 de cada UF se possível)
+  const ufs = Array.from(new Set(politicos.map(p => p.uf)));
+  const representativos: PoliticoNormalizado[] = [];
+  
+  ufs.forEach(uf => {
+    const pUf = politicos.filter(p => p.uf === uf);
+    if (pUf.length > 0) {
+      representativos.push(pUf[Math.floor(Math.random() * pUf.length)]);
+    }
+  });
 
-  console.log(`Iniciando busca de eventos reais para ${amostra.length} políticos...`);
+  // Completar a amostra até 60 com aleatórios
+  const restantes = politicos.filter(p => !representativos.find(r => r.id === p.id));
+  const amostra = [...representativos, ...restantes.sort(() => 0.5 - Math.random()).slice(0, 60 - representativos.length)];
+
+  console.log(`Iniciando busca de eventos reais para ${amostra.length} políticos representativos...`);
 
   await Promise.all(amostra.map(async (politico) => {
     try {
