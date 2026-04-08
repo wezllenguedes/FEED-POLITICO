@@ -158,7 +158,8 @@ export async function getCamaraExpenses(id: string): Promise<any[]> {
 export async function getCamaraProposicoes(id: string): Promise<any[]> {
   const rawId = id.replace('camara-', '');
   try {
-    const response = await fetch(`${CAMARA_API_URL}/proposicoes?idDeputadoAutor=${rawId}&ordem=DESC&ordenarPor=id&itens=3`, FETCH_OPTIONS);
+    // Ordenar por ano e numero para pegar os mais recentes
+    const response = await fetch(`${CAMARA_API_URL}/proposicoes?idDeputadoAutor=${rawId}&ordem=DESC&ordenarPor=id&itens=5`, FETCH_OPTIONS);
     if (!response.ok) return [];
     const data = await response.json();
     return data.dados || [];
@@ -274,11 +275,12 @@ export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promi
         });
 
         proposicoes.slice(0, 2).forEach((prop: any) => {
+          const anoStr = prop.ano && prop.ano !== 0 ? `/${prop.ano}` : '';
           events.push({
             id: `prop-${prop.id}`,
             politico,
             actionType: 'proposal',
-            text: `${prop.siglaTipo} ${prop.numero}/${prop.ano}: ${prop.ementa}`,
+            text: `${prop.siglaTipo} ${prop.numero}${anoStr}: ${prop.ementa}`,
             icon: '📜',
             color: 'text-red-600',
             amountValue: 0,

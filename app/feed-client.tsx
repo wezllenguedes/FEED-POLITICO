@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
-import { PoliticoNormalizado, FeedEvent } from '@/lib/api';
+import { PoliticoNormalizado, FeedEvent, getCamaraProposicoes, getCamaraExpenses, getCamaraDiscursos, getSenadoDiscursos } from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Megaphone, FileText, Share2, MoreHorizontal, ExternalLink, Filter, TrendingUp, Search, Info, Thermometer, Home, User, ChevronRight, X } from 'lucide-react';
+import { Megaphone, FileText, Share2, MoreHorizontal, ExternalLink, Filter, TrendingUp, Search, Info, Thermometer, Home, User, ChevronRight, X, ShieldAlert, Loader2, Receipt, MessageSquare, ScrollText, Flame } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'motion/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -32,12 +32,67 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
   const [selectedPoliticianId, setSelectedPoliticianId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'feed' | 'ranking' | 'search'>('feed');
   const [detailPolitician, setDetailPolitician] = useState<PoliticoNormalizado | null>(null);
+  const [modalTab, setModalTab] = useState<'perfil' | 'projetos' | 'gastos' | 'discursos'>('perfil');
+  const [modalData, setModalData] = useState<{
+    proposicoes: any[];
+    gastos: any[];
+    discursos: any[];
+    loading: boolean;
+  }>({
+    proposicoes: [],
+    gastos: [],
+    discursos: [],
+    loading: false
+  });
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsMounted(true), 0);
     return () => clearTimeout(timer);
   }, []);
+
+  // Fetch extra data when modal opens
+  useEffect(() => {
+    if (!detailPolitician) {
+      const timer = setTimeout(() => {
+        setModalData({ proposicoes: [], gastos: [], discursos: [], loading: false });
+        setModalTab('perfil');
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+
+    const fetchData = async () => {
+      setModalData(prev => ({ ...prev, loading: true }));
+      try {
+        if (detailPolitician.origem === 'camara') {
+          const [props, expenses, speeches] = await Promise.all([
+            getCamaraProposicoes(detailPolitician.id),
+            getCamaraExpenses(detailPolitician.id),
+            getCamaraDiscursos(detailPolitician.id)
+          ]);
+          setModalData({
+            proposicoes: props,
+            gastos: expenses,
+            discursos: speeches,
+            loading: false
+          });
+        } else {
+          const speeches = await getSenadoDiscursos(detailPolitician.id);
+          setModalData({
+            proposicoes: [],
+            gastos: [],
+            discursos: speeches,
+            loading: false
+          });
+        }
+      } catch (error) {
+        console.error("Erro ao buscar dados do modal:", error);
+        setModalData(prev => ({ ...prev, loading: false }));
+      }
+    };
+
+    fetchData();
+  }, [detailPolitician]);
 
   // Extract unique parties and UFs for the dropdowns
   const partidos = useMemo(() => Array.from(new Set(initialPoliticians.map(p => p.partido))).sort(), [initialPoliticians]);
@@ -239,23 +294,93 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
                 className="overflow-hidden border-b border-border bg-card/10"
               >
                 <div className="p-4">
-                  <h3 className="text-[10px] font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <TrendingUp className="h-3 w-3 text-primary" />
-                    Top Gastos por Partido (Amostra)
+                  <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2 bg-foreground text-background px-3 py-1 w-fit">
+                    <Thermometer className="h-3 w-3" />
+                    Termômetro de Gastos por Partido
                   </h3>
-                  <div className="h-[180px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={dashboardData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                        <XAxis dataKey="party" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                        <YAxis tickFormatter={(val) => `R$${(val/1000).toFixed(0)}k`} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
-                        <Tooltip 
-                          formatter={(value: any) => [`R$ ${Number(value).toFixed(2)}`, 'Gasto']}
-                          contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px', fontSize: '10px' }}
-                        />
-                        <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                  
+                  <div className="flex justify-around items-end h-[220px] pt-4 pb-10 px-6 md:px-12 relative">
+                    {/* Temperature Scale */}
+                    <div className="absolute left-2 top-4 bottom-10 flex flex-col justify-between text-[7px] font-black opacity-40 pr-2 border-r-2 border-foreground/20">
+                       <span>QUENTE</span>
+                       <span>75%</span>
+                       <span>50%</span>
+                       <span>25%</span>
+                       <span>FRIO</span>
+                    </div>
+
+                    {dashboardData.map((data, i) => {
+                      const maxAmount = Math.max(...dashboardData.map(d => d.amount));
+                      const percentage = maxAmount > 0 ? (data.amount / maxAmount) * 100 : 0;
+                      
+                      return (
+                        <div key={data.party} className="flex flex-col items-center h-full relative">
+                          {/* Top party indicator */}
+                          {i === 0 && (
+                            <motion.div 
+                              animate={{ y: [0, -4, 0], scale: [1, 1.1, 1] }}
+                              transition={{ duration: 1.5, repeat: Infinity }}
+                              className="absolute -top-6 left-1/2 -translate-x-1/2 text-primary"
+                            >
+                              <Flame className="w-4 h-4 fill-current" />
+                            </motion.div>
+                          )}
+                          {/* Thermometer Tube */}
+                          <div className="relative w-3 md:w-5 bg-muted/20 border-2 border-foreground h-full flex flex-col justify-end rounded-t-full">
+                            <motion.div 
+                              initial={{ height: 0 }}
+                              animate={{ height: `${percentage}%` }}
+                              transition={{ duration: 2.5, ease: "circOut", delay: i * 0.1 }}
+                              className="w-full bg-primary rounded-t-full relative overflow-hidden"
+                            >
+                              {/* Reflection shine */}
+                              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-1 md:w-1.5 h-[80%] bg-white/20 rounded-full blur-[1px]" />
+                              
+                              {/* Bubbles */}
+                              {[1, 2, 3].map((b) => (
+                                <motion.div
+                                  key={b}
+                                  initial={{ y: "100%", opacity: 0 }}
+                                  animate={{ y: "-100%", opacity: [0, 0.5, 0] }}
+                                  transition={{ 
+                                    duration: 2 + Math.random(), 
+                                    repeat: Infinity, 
+                                    delay: Math.random() * 2,
+                                    ease: "linear"
+                                  }}
+                                  className="absolute w-1 h-1 bg-white rounded-full"
+                                  style={{ left: `${20 + b * 20}%` }}
+                                />
+                              ))}
+                            </motion.div>
+                            
+                            {/* Bulb at the bottom */}
+                            <motion.div 
+                              animate={{ scale: [1, 1.05, 1] }}
+                              transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
+                              className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-8 md:w-10 h-8 md:h-10 rounded-full bg-primary border-2 border-foreground z-10 flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                            >
+                               <div className="w-3 h-3 md:w-4 md:h-4 bg-white/30 rounded-full blur-[2px] -translate-x-1 -translate-y-1" />
+                            </motion.div>
+                          </div>
+                          
+                          {/* Labels */}
+                          <div className="absolute -bottom-16 flex flex-col items-center w-20">
+                            <span className="text-[10px] font-black uppercase tracking-tighter">{data.party}</span>
+                            <motion.span 
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 2 + i * 0.1 }}
+                              className="text-[9px] font-black text-primary italic"
+                            >
+                              R${(data.amount/1000).toFixed(0)}k
+                            </motion.span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
+                  <div className="h-12" /> {/* Spacer for labels */}
                 </div>
               </motion.div>
             )}
@@ -450,15 +575,15 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
                 </div>
               </div>
               
-              <div className="mt-20 px-8 pb-8 flex flex-col gap-8">
+              <div className="mt-20 px-4 md:px-8 pb-8 flex flex-col gap-6">
                 <div>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex flex-col">
-                      <h2 className="text-3xl font-black uppercase tracking-tighter italic leading-none">{detailPolitician.nome}</h2>
-                      <p className="text-sm font-bold uppercase opacity-60 mt-2">{detailPolitician.cargo} • {detailPolitician.partido} • {detailPolitician.uf}</p>
+                      <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter italic leading-none">{detailPolitician.nome}</h2>
+                      <p className="text-xs md:text-sm font-bold uppercase opacity-60 mt-2">{detailPolitician.cargo} • {detailPolitician.partido} • {detailPolitician.uf}</p>
                     </div>
                     <div className="flex flex-col items-end">
-                      <div className="text-4xl font-black italic tracking-tighter text-primary">
+                      <div className="text-3xl md:text-4xl font-black italic tracking-tighter text-primary">
                         {detailPolitician.score}%
                       </div>
                       <div className="text-[8px] font-black uppercase tracking-widest opacity-40">Score Progressista</div>
@@ -473,37 +598,149 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
                   </div>
                 </div>
 
-                <div className="border-4 border-foreground p-6 bg-muted/10 relative">
-                  <h3 className="text-xs font-black uppercase tracking-widest mb-6 text-center bg-foreground text-background py-1 absolute -top-3 left-1/2 -translate-x-1/2 px-4">
-                    Perfil de Atuação
-                  </h3>
-                  <div className="h-[250px] w-full flex justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                        <PolarGrid stroke="rgba(0,0,0,0.1)" />
-                        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fontWeight: 900, fill: 'black' }} />
-                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                        <Radar
-                          name={detailPolitician.nome}
-                          dataKey="A"
-                          stroke="oklch(0.55 0.25 25)"
-                          fill="oklch(0.55 0.25 25)"
-                          fillOpacity={0.7}
-                        />
-                      </RadarChart>
-                    </ResponsiveContainer>
-                  </div>
+                {/* Modal Tabs */}
+                <div className="flex border-b-4 border-foreground overflow-x-auto no-scrollbar">
+                  {[
+                    { id: 'perfil', label: 'Perfil', icon: User },
+                    { id: 'projetos', label: 'Projetos', icon: ScrollText },
+                    { id: 'gastos', label: 'Gastos', icon: Receipt },
+                    { id: 'discursos', label: 'Discursos', icon: MessageSquare },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setModalTab(tab.id as any)}
+                      className={`flex items-center gap-2 px-4 py-3 font-black uppercase text-[10px] md:text-xs whitespace-nowrap transition-all ${
+                        modalTab === tab.id 
+                          ? 'bg-foreground text-background translate-y-0' 
+                          : 'bg-background text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      <tab.icon className="w-4 h-4" />
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
 
-                <div className="flex flex-col gap-4">
-                  <h3 className="text-xs font-black uppercase tracking-widest border-l-4 border-primary pl-2">Perfil de Atuação</h3>
-                  <p className="text-sm font-bold leading-relaxed text-foreground/80">
-                    {detailPolitician.nome} é {detailPolitician.cargo} por {detailPolitician.uf}, filiado(a) ao {detailPolitician.partido}. 
-                    Os indicadores abaixo refletem a análise de sua atividade parlamentar (proposições, discursos e gastos) sob a ótica da linha editorial desta plataforma.
-                  </p>
+                <div className="min-h-[300px]">
+                  {modalData.loading ? (
+                    <div className="flex flex-col items-center justify-center h-full py-20 gap-4">
+                      <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                      <p className="text-[10px] font-black uppercase opacity-40">Carregando dados oficiais...</p>
+                    </div>
+                  ) : (
+                    <>
+                      {modalTab === 'perfil' && (
+                        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4">
+                          <div className="border-4 border-foreground p-6 bg-muted/10 relative">
+                            <h3 className="text-xs font-black uppercase tracking-widest mb-6 text-center bg-foreground text-background py-1 absolute -top-3 left-1/2 -translate-x-1/2 px-4">
+                              Radar de Atuação
+                            </h3>
+                            <div className="h-[250px] w-full flex justify-center">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                                  <PolarGrid stroke="rgba(0,0,0,0.1)" />
+                                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fontWeight: 900, fill: 'black' }} />
+                                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                                  <Radar
+                                    name={detailPolitician.nome}
+                                    dataKey="A"
+                                    stroke="oklch(0.55 0.25 25)"
+                                    fill="oklch(0.55 0.25 25)"
+                                    fillOpacity={0.7}
+                                  />
+                                </RadarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-4">
+                            <h3 className="text-xs font-black uppercase tracking-widest border-l-4 border-primary pl-2">Análise Editorial</h3>
+                            <p className="text-sm font-bold leading-relaxed text-foreground/80">
+                              {detailPolitician.nome} é {detailPolitician.cargo} por {detailPolitician.uf}, filiado(a) ao {detailPolitician.partido}. 
+                              Os indicadores acima refletem a análise de sua atividade parlamentar sob a ótica da linha editorial desta plataforma.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {modalTab === 'projetos' && (
+                        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4">
+                          {modalData.proposicoes.length === 0 ? (
+                            <div className="text-center py-10 opacity-40 font-black uppercase text-xs">Nenhum projeto recente encontrado.</div>
+                          ) : (
+                            modalData.proposicoes.map((prop) => {
+                              const anoStr = prop.ano && prop.ano !== 0 ? `/${prop.ano}` : '';
+                              return (
+                                <div key={prop.id} className="border-2 border-foreground p-4 bg-background shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                                  <div className="flex justify-between items-start gap-2 mb-2">
+                                    <Badge className="rounded-none bg-foreground text-background font-black text-[8px]">
+                                      {prop.siglaTipo} {prop.numero}{anoStr}
+                                    </Badge>
+                                    <span className="text-[8px] font-black opacity-40">{prop.dataApresentacao ? new Date(prop.dataApresentacao).toLocaleDateString('pt-BR') : ''}</span>
+                                  </div>
+                                  <p className="text-xs font-bold leading-tight mb-3">{prop.ementa}</p>
+                                  <a 
+                                    href={`https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${prop.id}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-[8px] font-black uppercase flex items-center gap-1 hover:text-primary"
+                                  >
+                                    Ver Tramitação <ExternalLink className="w-2 h-2" />
+                                  </a>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+
+                      {modalTab === 'gastos' && (
+                        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4">
+                          {modalData.gastos.length === 0 ? (
+                            <div className="text-center py-10 opacity-40 font-black uppercase text-xs">Nenhum gasto recente encontrado.</div>
+                          ) : (
+                            modalData.gastos.map((gasto, i) => (
+                              <div key={i} className="border-2 border-foreground p-4 bg-background shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex justify-between items-center">
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-[8px] font-black uppercase opacity-60">{gasto.tipoDespesa}</span>
+                                  <span className="text-[10px] font-black">{gasto.dataDocumento ? new Date(gasto.dataDocumento).toLocaleDateString('pt-BR') : ''}</span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-sm font-black text-primary">R$ {gasto.valorLiquido?.toLocaleString('pt-BR')}</span>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+
+                      {modalTab === 'discursos' && (
+                        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4">
+                          {modalData.discursos.length === 0 ? (
+                            <div className="text-center py-10 opacity-40 font-black uppercase text-xs">Nenhum discurso recente encontrado.</div>
+                          ) : (
+                            modalData.discursos.map((disc, i) => (
+                              <div key={i} className="border-2 border-foreground p-4 bg-background shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                                <div className="flex justify-between items-start gap-2 mb-2">
+                                  <span className="text-[8px] font-black uppercase opacity-60">Pronunciamento</span>
+                                  <span className="text-[8px] font-black opacity-40">
+                                    {disc.dataHoraInicio ? new Date(disc.dataHoraInicio).toLocaleDateString('pt-BR') : 
+                                     disc.DataPronunciamento ? new Date(disc.DataPronunciamento).toLocaleDateString('pt-BR') : ''}
+                                  </span>
+                                </div>
+                                <p className="text-xs font-bold leading-tight italic">
+                                  &quot;{disc.sumario || disc.ResumoPronunciamento || disc.TextoPronunciamento || 'Sem resumo disponível'}&quot;
+                                </p>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3 mt-4">
                   <button 
                     onClick={() => {
                       setSelectedPoliticianId(detailPolitician.id);
@@ -512,7 +749,7 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
                     }}
                     className="w-full bg-primary text-white py-4 font-black uppercase tracking-widest hover:bg-foreground transition-all shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1"
                   >
-                    Ver Atividade no Feed
+                    Filtrar Feed por este Parlamentar
                   </button>
                 </div>
               </div>
