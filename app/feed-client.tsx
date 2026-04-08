@@ -220,13 +220,6 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <button 
-                onClick={() => setShowDashboard(!showDashboard)}
-                className={`p-2 border-2 h-12 w-12 flex items-center justify-center transition-all ${showDashboard ? 'bg-primary text-white border-primary' : 'bg-background border-foreground hover:bg-primary hover:text-white hover:border-primary'}`}
-                title="Ver Dashboard"
-              >
-                <TrendingUp className="h-6 w-6" />
-              </button>
             </div>
             
             <ScrollArea className="w-full whitespace-nowrap">
@@ -284,107 +277,98 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
             </ScrollArea>
           </div>
 
-          {/* Dashboard Section (Collapsible) */}
-          <AnimatePresence>
-            {showDashboard && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden border-b border-border bg-card/10"
-              >
-                <div className="p-4">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2 bg-foreground text-background px-3 py-1 w-fit">
-                    <Thermometer className="h-3 w-3" />
-                    Termômetro de Gastos por Partido
-                  </h3>
-                  
-                  <div className="flex justify-around items-end h-[220px] pt-4 pb-10 px-6 md:px-12 relative">
-                    {/* Temperature Scale */}
-                    <div className="absolute left-2 top-4 bottom-10 flex flex-col justify-between text-[7px] font-black opacity-40 pr-2 border-r-2 border-foreground/20">
-                       <span>QUENTE</span>
-                       <span>75%</span>
-                       <span>50%</span>
-                       <span>25%</span>
-                       <span>FRIO</span>
-                    </div>
-
-                    {dashboardData.map((data, i) => {
-                      const maxAmount = Math.max(...dashboardData.map(d => d.amount));
-                      const percentage = maxAmount > 0 ? (data.amount / maxAmount) * 100 : 0;
-                      
-                      return (
-                        <div key={data.party} className="flex flex-col items-center h-full relative">
-                          {/* Top party indicator */}
-                          {i === 0 && (
-                            <motion.div 
-                              animate={{ y: [0, -4, 0], scale: [1, 1.1, 1] }}
-                              transition={{ duration: 1.5, repeat: Infinity }}
-                              className="absolute -top-6 left-1/2 -translate-x-1/2 text-primary"
-                            >
-                              <Flame className="w-4 h-4 fill-current" />
-                            </motion.div>
-                          )}
-                          {/* Thermometer Tube */}
-                          <div className="relative w-3 md:w-5 bg-muted/20 border-2 border-foreground h-full flex flex-col justify-end rounded-t-full">
-                            <motion.div 
-                              initial={{ height: 0 }}
-                              animate={{ height: `${percentage}%` }}
-                              transition={{ duration: 2.5, ease: "circOut", delay: i * 0.1 }}
-                              className="w-full bg-primary rounded-t-full relative overflow-hidden"
-                            >
-                              {/* Reflection shine */}
-                              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-1 md:w-1.5 h-[80%] bg-white/20 rounded-full blur-[1px]" />
-                              
-                              {/* Bubbles */}
-                              {[1, 2, 3].map((b) => (
-                                <motion.div
-                                  key={b}
-                                  initial={{ y: "100%", opacity: 0 }}
-                                  animate={{ y: "-100%", opacity: [0, 0.5, 0] }}
-                                  transition={{ 
-                                    duration: 2 + Math.random(), 
-                                    repeat: Infinity, 
-                                    delay: Math.random() * 2,
-                                    ease: "linear"
-                                  }}
-                                  className="absolute w-1 h-1 bg-white rounded-full"
-                                  style={{ left: `${20 + b * 20}%` }}
-                                />
-                              ))}
-                            </motion.div>
-                            
-                            {/* Bulb at the bottom */}
-                            <motion.div 
-                              animate={{ scale: [1, 1.05, 1] }}
-                              transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
-                              className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-8 md:w-10 h-8 md:h-10 rounded-full bg-primary border-2 border-foreground z-10 flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                            >
-                               <div className="w-3 h-3 md:w-4 md:h-4 bg-white/30 rounded-full blur-[2px] -translate-x-1 -translate-y-1" />
-                            </motion.div>
-                          </div>
-                          
-                          {/* Labels */}
-                          <div className="absolute -bottom-16 flex flex-col items-center w-20">
-                            <span className="text-[10px] font-black uppercase tracking-tighter">{data.party}</span>
-                            <motion.span 
-                              initial={{ opacity: 0, y: 5 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 2 + i * 0.1 }}
-                              className="text-[9px] font-black text-primary italic"
-                            >
-                              R${(data.amount/1000).toFixed(0)}k
-                            </motion.span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="h-12" /> {/* Spacer for labels */}
+          {/* Dashboard Section (Permanent) */}
+          <div className="border-b-2 border-foreground bg-card/10">
+            <div className="p-4">
+              <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2 bg-foreground text-background px-3 py-1 w-fit">
+                <Thermometer className="h-3 w-3" />
+                Termômetro de Gastos por Partido
+              </h3>
+              
+              <div className="flex justify-around items-end h-[220px] pt-4 pb-10 px-6 md:px-12 relative">
+                {/* Temperature Scale */}
+                <div className="absolute left-2 top-4 bottom-10 flex flex-col justify-between text-[7px] font-black opacity-40 pr-2 border-r-2 border-foreground/20">
+                   <span>QUENTE</span>
+                   <span>75%</span>
+                   <span>50%</span>
+                   <span>25%</span>
+                   <span>FRIO</span>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+
+                {dashboardData.map((data, i) => {
+                  const maxAmount = Math.max(...dashboardData.map(d => d.amount));
+                  const percentage = maxAmount > 0 ? (data.amount / maxAmount) * 100 : 0;
+                  
+                  return (
+                    <div key={data.party} className="flex flex-col items-center h-full relative">
+                      {/* Top party indicator */}
+                      {i === 0 && (
+                        <motion.div 
+                          animate={{ y: [0, -4, 0], scale: [1, 1.1, 1] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                          className="absolute -top-6 left-1/2 -translate-x-1/2 text-primary"
+                        >
+                          <Flame className="w-4 h-4 fill-current" />
+                        </motion.div>
+                      )}
+                      {/* Thermometer Tube */}
+                      <div className="relative w-3 md:w-5 bg-muted/20 border-2 border-foreground h-full flex flex-col justify-end rounded-t-full">
+                        <motion.div 
+                          initial={{ height: 0 }}
+                          animate={{ height: `${percentage}%` }}
+                          transition={{ duration: 2.5, ease: "circOut", delay: i * 0.1 }}
+                          className="w-full bg-primary rounded-t-full relative overflow-hidden"
+                        >
+                          {/* Reflection shine */}
+                          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-1 md:w-1.5 h-[80%] bg-white/20 rounded-full blur-[1px]" />
+                          
+                          {/* Bubbles */}
+                          {[1, 2, 3].map((b) => (
+                            <motion.div
+                              key={b}
+                              initial={{ y: "100%", opacity: 0 }}
+                              animate={{ y: "-100%", opacity: [0, 0.5, 0] }}
+                              transition={{ 
+                                duration: 2 + Math.random(), 
+                                repeat: Infinity, 
+                                delay: Math.random() * 2,
+                                ease: "linear"
+                              }}
+                              className="absolute w-1 h-1 bg-white rounded-full"
+                              style={{ left: `${20 + b * 20}%` }}
+                            />
+                          ))}
+                        </motion.div>
+                        
+                        {/* Bulb at the bottom */}
+                        <motion.div 
+                          animate={{ scale: [1, 1.05, 1] }}
+                          transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
+                          className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-8 md:w-10 h-8 md:h-10 rounded-full bg-primary border-2 border-foreground z-10 flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                        >
+                           <div className="w-3 h-3 md:w-4 md:h-4 bg-white/30 rounded-full blur-[2px] -translate-x-1 -translate-y-1" />
+                        </motion.div>
+                      </div>
+                      
+                      {/* Labels */}
+                      <div className="absolute -bottom-16 flex flex-col items-center w-20">
+                        <span className="text-[10px] font-black uppercase tracking-tighter">{data.party}</span>
+                        <motion.span 
+                          initial={{ opacity: 0, y: 5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 2 + i * 0.1 }}
+                          className="text-[9px] font-black text-primary italic"
+                        >
+                          R${(data.amount/1000).toFixed(0)}k
+                        </motion.span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="h-12" /> {/* Spacer for labels */}
+            </div>
+          </div>
 
           {/* Feed Section */}
           <div className="flex flex-col gap-6 p-4">
