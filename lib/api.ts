@@ -1,6 +1,14 @@
 export const CAMARA_API_URL = 'https://dadosabertos.camara.leg.br/api/v2';
 export const SENADO_API_URL = 'https://legis.senado.leg.br/dadosabertos';
 
+const FETCH_OPTIONS = {
+  headers: {
+    'Accept': 'application/json',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+  },
+  next: { revalidate: 3600 }
+};
+
 // --- CAMADA DE NORMALIZAÇÃO ---
 export interface PoliticoNormalizado {
   id: string;
@@ -106,8 +114,11 @@ function calculateProgressiveScore(partido: string) {
 // --- CÂMARA DOS DEPUTADOS ---
 export async function getDeputadosNormalizados(page = 1, itens = 100): Promise<PoliticoNormalizado[]> {
   try {
-    const response = await fetch(`${CAMARA_API_URL}/deputados?ordem=ASC&ordenarPor=nome&pagina=${page}&itens=${itens}`);
-    if (!response.ok) return [];
+    const response = await fetch(`${CAMARA_API_URL}/deputados?ordem=ASC&ordenarPor=nome&pagina=${page}&itens=${itens}`, FETCH_OPTIONS);
+    if (!response.ok) {
+      console.error(`Erro API Câmara Deputados: ${response.status}`);
+      return [];
+    }
     const data = await response.json();
     
     return data.dados.map((d: any): PoliticoNormalizado => {
@@ -127,6 +138,7 @@ export async function getDeputadosNormalizados(page = 1, itens = 100): Promise<P
       };
     });
   } catch (error) {
+    console.error("Erro ao buscar deputados:", error);
     return [];
   }
 }
@@ -134,10 +146,10 @@ export async function getDeputadosNormalizados(page = 1, itens = 100): Promise<P
 export async function getCamaraExpenses(id: string): Promise<any[]> {
   const rawId = id.replace('camara-', '');
   try {
-    const response = await fetch(`${CAMARA_API_URL}/deputados/${rawId}/despesas?ordem=DESC&ordenarPor=dataDocumento&itens=5`);
+    const response = await fetch(`${CAMARA_API_URL}/deputados/${rawId}/despesas?ordem=DESC&ordenarPor=dataDocumento&itens=5`, FETCH_OPTIONS);
     if (!response.ok) return [];
     const data = await response.json();
-    return data.dados;
+    return data.dados || [];
   } catch (error) {
     return [];
   }
@@ -146,10 +158,10 @@ export async function getCamaraExpenses(id: string): Promise<any[]> {
 export async function getCamaraProposicoes(id: string): Promise<any[]> {
   const rawId = id.replace('camara-', '');
   try {
-    const response = await fetch(`${CAMARA_API_URL}/proposicoes?idDeputadoAutor=${rawId}&ordem=DESC&ordenarPor=id&itens=3`);
+    const response = await fetch(`${CAMARA_API_URL}/proposicoes?idDeputadoAutor=${rawId}&ordem=DESC&ordenarPor=id&itens=3`, FETCH_OPTIONS);
     if (!response.ok) return [];
     const data = await response.json();
-    return data.dados;
+    return data.dados || [];
   } catch (error) {
     return [];
   }
@@ -158,10 +170,10 @@ export async function getCamaraProposicoes(id: string): Promise<any[]> {
 export async function getCamaraDiscursos(id: string): Promise<any[]> {
   const rawId = id.replace('camara-', '');
   try {
-    const response = await fetch(`${CAMARA_API_URL}/deputados/${rawId}/discursos?ordem=DESC&ordenarPor=dataHoraInicio&itens=3`);
+    const response = await fetch(`${CAMARA_API_URL}/deputados/${rawId}/discursos?ordem=DESC&ordenarPor=dataHoraInicio&itens=3`, FETCH_OPTIONS);
     if (!response.ok) return [];
     const data = await response.json();
-    return data.dados;
+    return data.dados || [];
   } catch (error) {
     return [];
   }
@@ -170,10 +182,11 @@ export async function getCamaraDiscursos(id: string): Promise<any[]> {
 // --- SENADO FEDERAL ---
 export async function getSenadoresNormalizados(): Promise<PoliticoNormalizado[]> {
   try {
-    const response = await fetch(`${SENADO_API_URL}/senador/lista/atual`, {
-      headers: { 'Accept': 'application/json' }
-    });
-    if (!response.ok) return [];
+    const response = await fetch(`${SENADO_API_URL}/senador/lista/atual`, FETCH_OPTIONS);
+    if (!response.ok) {
+      console.error(`Erro API Senado: ${response.status}`);
+      return [];
+    }
     const data = await response.json();
     
     const senadores = data.ListaParlamentarEmExercicio.Parlamentares.Parlamentar;
@@ -210,9 +223,7 @@ export async function getSenadoresNormalizados(): Promise<PoliticoNormalizado[]>
 export async function getSenadoDiscursos(id: string): Promise<any[]> {
   const rawId = id.replace('senado-', '');
   try {
-    const response = await fetch(`${SENADO_API_URL}/senador/${rawId}/discursos`, {
-      headers: { 'Accept': 'application/json' }
-    });
+    const response = await fetch(`${SENADO_API_URL}/senador/${rawId}/discursos`, FETCH_OPTIONS);
     if (!response.ok) return [];
     const data = await response.json();
     const discursos = data?.DiscursosParlamentar?.Parlamentar?.Discursos?.Discurso || [];
@@ -226,19 +237,26 @@ export async function getSenadoDiscursos(id: string): Promise<any[]> {
 export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promise<FeedEvent[]> {
   const events: FeedEvent[] = [];
   
-  // Amostra maior para ter bastante dado real, mas sem estourar limite da API
-  const amostra = politicos.sort(() => 0.5 - Math.random()).slice(0, 100);
+  // Amostra reduzida para evitar rate limit da API (25 políticos * 3 requests cada = 75 requests)
+  const amostra = politicos.sort(() => 0.5 - Math.random()).slice(0, 25);
+
+  console.log(`Iniciando busca de eventos reais para ${amostra.length} políticos...`);
 
   await Promise.all(amostra.map(async (politico) => {
     try {
       if (politico.origem === 'camara') {
-        const [expenses, proposicoes, discursos] = await Promise.all([
+        // Usando Promise.allSettled para não travar se um falhar
+        const results = await Promise.allSettled([
           getCamaraExpenses(politico.id),
           getCamaraProposicoes(politico.id),
           getCamaraDiscursos(politico.id)
         ]);
         
-        expenses.slice(0, 2).forEach(exp => {
+        const expenses = results[0].status === 'fulfilled' ? results[0].value : [];
+        const proposicoes = results[1].status === 'fulfilled' ? results[1].value : [];
+        const discursos = results[2].status === 'fulfilled' ? results[2].value : [];
+        
+        expenses.slice(0, 2).forEach((exp: any) => {
           if (exp.valorLiquido > 0) {
             events.push({
               id: `exp-${exp.codDocumento || Math.random()}`,
@@ -255,7 +273,7 @@ export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promi
           }
         });
 
-        proposicoes.slice(0, 2).forEach(prop => {
+        proposicoes.slice(0, 2).forEach((prop: any) => {
           events.push({
             id: `prop-${prop.id}`,
             politico,
@@ -270,7 +288,7 @@ export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promi
           });
         });
 
-        discursos.slice(0, 2).forEach(disc => {
+        discursos.slice(0, 2).forEach((disc: any) => {
           events.push({
             id: `disc-camara-${Math.random()}`,
             politico,
@@ -304,7 +322,7 @@ export async function getRealFeedEvents(politicos: PoliticoNormalizado[]): Promi
         });
       }
     } catch (e) {
-      console.error(`Failed to fetch data for ${politico.nome}`);
+      console.error(`Failed to fetch data for ${politico.nome}:`, e);
     }
   }));
 
