@@ -153,7 +153,7 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
       <div className="bg-primary p-3 text-[10px] md:text-xs text-primary-foreground flex items-start gap-2 border-b-2 border-foreground">
         <Info className="w-3 h-3 md:w-4 h-4 shrink-0 mt-0.5" />
         <p className="font-bold uppercase tracking-widest">
-          Aviso Editorial: Esta análise segue critérios editoriais progressistas. 
+          Dados Oficiais: Esta plataforma consolida atividades parlamentares brutas. 
           Dados reais de gastos, leis e discursos obtidos via APIs oficiais da Câmara e Senado.
         </p>
       </div>
@@ -365,6 +365,12 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
                     </div>
                   );
                 })}
+                <div className="flex justify-between items-center mt-4 px-2">
+                  <div className="flex gap-4 text-[8px] font-black uppercase opacity-40">
+                    <a href="https://dadosabertos.camara.leg.br/" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Fonte: Câmara</a>
+                    <a href="https://legis.senado.leg.br/dadosabertos/" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Fonte: Senado</a>
+                  </div>
+                </div>
               </div>
               <div className="h-12" /> {/* Spacer for labels */}
             </div>
@@ -434,10 +440,20 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
                     <CardFooter className="p-4 flex flex-col gap-4 bg-background">
                       <div className="flex justify-between w-full items-center">
                         <div className="flex gap-4">
-                          <button className="flex items-center gap-2 font-black uppercase text-xs hover:text-primary transition-colors">
-                            <Megaphone className="w-5 h-5" />
-                            <span>Cobrar</span>
-                          </button>
+                          {event.politico.email ? (
+                            <a 
+                              href={`mailto:${event.politico.email}`}
+                              className="flex items-center gap-2 font-black uppercase text-xs hover:text-primary transition-colors"
+                            >
+                              <Megaphone className="w-5 h-5" />
+                              <span>Cobrar</span>
+                            </a>
+                          ) : (
+                            <button className="flex items-center gap-2 font-black uppercase text-xs opacity-20 cursor-not-allowed">
+                              <Megaphone className="w-5 h-5" />
+                              <span>Cobrar</span>
+                            </button>
+                          )}
                           {event.documentUrl && (
                             <a href={event.documentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 font-black uppercase text-xs hover:text-primary transition-colors">
                               <FileText className="w-5 h-5" />
@@ -464,7 +480,7 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
       {activeTab === 'ranking' && (
         <div className="p-4 flex flex-col gap-6">
           <h2 className="text-3xl font-black uppercase tracking-tighter italic border-b-4 border-primary pb-2">
-            Ranking <span className="text-primary">Progressista</span>
+            Ranking de <span className="text-primary">Atividade</span>
           </h2>
           <div className="flex flex-col gap-4">
             {rankingPoliticians.map((politico, index) => (
@@ -570,7 +586,7 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
                       <div className="text-3xl md:text-4xl font-black italic tracking-tighter text-primary">
                         {detailPolitician.score}%
                       </div>
-                      <div className="text-[8px] font-black uppercase tracking-widest opacity-40">Score Progressista</div>
+                      <div className="text-[8px] font-black uppercase tracking-widest opacity-40">Score de Atividade</div>
                     </div>
                   </div>
                   <div className="flex gap-2 mt-4 flex-wrap">
@@ -638,10 +654,10 @@ export default function FeedClient({ initialPoliticians, initialEvents }: FeedCl
                           </div>
 
                           <div className="flex flex-col gap-4">
-                            <h3 className="text-xs font-black uppercase tracking-widest border-l-4 border-primary pl-2">Análise Editorial</h3>
+                            <h3 className="text-xs font-black uppercase tracking-widest border-l-4 border-primary pl-2">Análise de Atividade</h3>
                             <p className="text-sm font-bold leading-relaxed text-foreground/80">
                               {detailPolitician.nome} é {detailPolitician.cargo} por {detailPolitician.uf}, filiado(a) ao {detailPolitician.partido}. 
-                              Os indicadores acima refletem a análise de sua atividade parlamentar sob a ótica da linha editorial desta plataforma.
+                              Os indicadores acima refletem a análise técnica de sua atividade parlamentar.
                             </p>
                           </div>
                         </div>

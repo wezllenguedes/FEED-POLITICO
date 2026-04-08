@@ -29,6 +29,7 @@ export interface PoliticoNormalizado {
   };
   resumo: string;
   tags: string[];
+  email?: string;
 }
 
 export interface FeedEvent {
@@ -134,7 +135,8 @@ export async function getDeputadosNormalizados(page = 1, itens = 100): Promise<P
         score: scoreData.total,
         indicadores: scoreData.indicadores,
         tags: scoreData.tags,
-        resumo: `Deputado(a) Federal por ${d.siglaUf} filiado(a) ao ${d.siglaPartido}.`
+        resumo: `Deputado(a) Federal por ${d.siglaUf} filiado(a) ao ${d.siglaPartido}.`,
+        email: d.email
       };
     });
   } catch (error) {
@@ -198,6 +200,7 @@ export async function getSenadoresNormalizados(): Promise<PoliticoNormalizado[]>
       const partido = s.IdentificacaoParlamentar.SiglaPartidoParlamentar;
       const uf = s.IdentificacaoParlamentar.UfParlamentar;
       const foto = s.IdentificacaoParlamentar.UrlFotoParlamentar;
+      const email = s.IdentificacaoParlamentar.EmailParlamentar;
       
       const scoreData = calculateProgressiveScore(partido);
       
@@ -212,7 +215,8 @@ export async function getSenadoresNormalizados(): Promise<PoliticoNormalizado[]>
         score: scoreData.total,
         indicadores: scoreData.indicadores,
         tags: scoreData.tags,
-        resumo: `Senador(a) por ${uf} filiado(a) ao ${partido}.`
+        resumo: `Senador(a) por ${uf} filiado(a) ao ${partido}.`,
+        email
       };
     });
   } catch (error) {
